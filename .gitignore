@@ -1,0 +1,9 @@
+# Go binaries
+*.exe
+
+# Runtime commit log data
+data/
+
+# Commit log files
+*.log
+*.index
