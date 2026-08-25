@@ -1,0 +1,103 @@
+services:
+  broker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: broker-1
+    environment:
+      BROKER_ID: broker-1
+      BROKER_HTTP_ADDR: 0.0.0.0:8080
+      BROKER_RAFT_ADDR: broker-1:8081
+      BROKER_DATA_DIR: /data
+      BROKER_PEERS: ""
+    ports:
+      - "8081:8080"
+    expose:
+      - "8080"
+      - "8081"
+      - "9080"
+    volumes:
+      - broker-1-data:/data
+    networks:
+      - event-log-net
+
+  broker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: broker-2
+    environment:
+      BROKER_ID: broker-2
+      BROKER_HTTP_ADDR: 0.0.0.0:8080
+      BROKER_RAFT_ADDR: broker-2:8081
+      BROKER_DATA_DIR: /data
+      BROKER_PEERS: broker-1:8080
+    depends_on:
+      - broker-1
+    ports:
+      - "8082:8080"
+    expose:
+      - "8080"
+      - "8081"
+      - "9080"
+    volumes:
+      - broker-2-data:/data
+    networks:
+      - event-log-net
+
+  broker-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: broker-3
+    environment:
+      BROKER_ID: broker-3
+      BROKER_HTTP_ADDR: 0.0.0.0:8080
+      BROKER_RAFT_ADDR: broker-3:8081
+      BROKER_DATA_DIR: /data
+      BROKER_PEERS: broker-1:8080
+    depends_on:
+      - broker-1
+    ports:
+      - "8083:8080"
+    expose:
+      - "8080"
+      - "8081"
+      - "9080"
+    volumes:
+      - broker-3-data:/data
+    networks:
+      - event-log-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - event-log-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json
+    ports:
+      - "3000:3000"
+    networks:
+      - event-log-net
+
+volumes:
+  broker-1-data:
+  broker-2-data:
+  broker-3-data:
+
+networks:
+  event-log-net:
+    driver: bridge

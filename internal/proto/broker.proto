@@ -1,0 +1,28 @@
+syntax = "proto3";
+package broker;
+option go_package = "distributed-event-log/internal/proto";
+
+service BrokerService {
+  rpc Produce(ProduceRequest) returns (ProduceResponse);
+  rpc Consume(ConsumeRequest) returns (ConsumeResponse);
+}
+
+message ProduceRequest {
+  string topic = 1;
+  bytes key    = 2;
+  bytes value  = 3;
+}
+
+message ProduceResponse {
+  uint64 offset = 1;
+}
+
+message ConsumeRequest {
+  uint64 offset = 1;
+}
+
+message ConsumeResponse {
+  uint64 offset = 1;
+  bytes  key    = 2;
+  bytes  value  = 3;
+}
