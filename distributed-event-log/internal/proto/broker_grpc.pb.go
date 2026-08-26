@@ -19,10 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BrokerService_Produce_FullMethodName      = "/broker.BrokerService/Produce"
-	BrokerService_Consume_FullMethodName      = "/broker.BrokerService/Consume"
-	BrokerService_CommitOffset_FullMethodName = "/broker.BrokerService/CommitOffset"
-	BrokerService_FetchOffset_FullMethodName  = "/broker.BrokerService/FetchOffset"
+	BrokerService_Produce_FullMethodName = "/broker.BrokerService/Produce"
+	BrokerService_Consume_FullMethodName = "/broker.BrokerService/Consume"
 )
 
 // BrokerServiceClient is the client API for BrokerService service.
@@ -31,8 +29,6 @@ const (
 type BrokerServiceClient interface {
 	Produce(ctx context.Context, in *ProduceRequest, opts ...grpc.CallOption) (*ProduceResponse, error)
 	Consume(ctx context.Context, in *ConsumeRequest, opts ...grpc.CallOption) (*ConsumeResponse, error)
-	CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error)
-	FetchOffset(ctx context.Context, in *FetchOffsetRequest, opts ...grpc.CallOption) (*FetchOffsetResponse, error)
 }
 
 type brokerServiceClient struct {
@@ -63,34 +59,12 @@ func (c *brokerServiceClient) Consume(ctx context.Context, in *ConsumeRequest, o
 	return out, nil
 }
 
-func (c *brokerServiceClient) CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CommitOffsetResponse)
-	err := c.cc.Invoke(ctx, BrokerService_CommitOffset_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *brokerServiceClient) FetchOffset(ctx context.Context, in *FetchOffsetRequest, opts ...grpc.CallOption) (*FetchOffsetResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(FetchOffsetResponse)
-	err := c.cc.Invoke(ctx, BrokerService_FetchOffset_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BrokerServiceServer is the server API for BrokerService service.
 // All implementations must embed UnimplementedBrokerServiceServer
 // for forward compatibility.
 type BrokerServiceServer interface {
 	Produce(context.Context, *ProduceRequest) (*ProduceResponse, error)
 	Consume(context.Context, *ConsumeRequest) (*ConsumeResponse, error)
-	CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error)
-	FetchOffset(context.Context, *FetchOffsetRequest) (*FetchOffsetResponse, error)
 	mustEmbedUnimplementedBrokerServiceServer()
 }
 
@@ -106,12 +80,6 @@ func (UnimplementedBrokerServiceServer) Produce(context.Context, *ProduceRequest
 }
 func (UnimplementedBrokerServiceServer) Consume(context.Context, *ConsumeRequest) (*ConsumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Consume not implemented")
-}
-func (UnimplementedBrokerServiceServer) CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CommitOffset not implemented")
-}
-func (UnimplementedBrokerServiceServer) FetchOffset(context.Context, *FetchOffsetRequest) (*FetchOffsetResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method FetchOffset not implemented")
 }
 func (UnimplementedBrokerServiceServer) mustEmbedUnimplementedBrokerServiceServer() {}
 func (UnimplementedBrokerServiceServer) testEmbeddedByValue()                       {}
@@ -170,42 +138,6 @@ func _BrokerService_Consume_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BrokerService_CommitOffset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CommitOffsetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BrokerServiceServer).CommitOffset(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BrokerService_CommitOffset_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BrokerServiceServer).CommitOffset(ctx, req.(*CommitOffsetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BrokerService_FetchOffset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FetchOffsetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BrokerServiceServer).FetchOffset(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BrokerService_FetchOffset_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BrokerServiceServer).FetchOffset(ctx, req.(*FetchOffsetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BrokerService_ServiceDesc is the grpc.ServiceDesc for BrokerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -220,14 +152,6 @@ var BrokerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Consume",
 			Handler:    _BrokerService_Consume_Handler,
-		},
-		{
-			MethodName: "CommitOffset",
-			Handler:    _BrokerService_CommitOffset_Handler,
-		},
-		{
-			MethodName: "FetchOffset",
-			Handler:    _BrokerService_FetchOffset_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
