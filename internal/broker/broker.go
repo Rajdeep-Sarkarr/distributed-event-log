@@ -797,9 +797,7 @@ func (b *Broker) handleJoin(
 		Addr string `json:"addr"`
 	}
 
-	if err := json.NewDecoder(
-		r.Body,
-	).Decode(&request); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(
 			w,
 			err.Error(),
@@ -808,8 +806,7 @@ func (b *Broker) handleJoin(
 		return
 	}
 
-	if request.ID == "" ||
-		request.Addr == "" {
+	if request.ID == "" || request.Addr == "" {
 		http.Error(
 			w,
 			"id and addr are required",
@@ -818,10 +815,25 @@ func (b *Broker) handleJoin(
 		return
 	}
 
-	if err := b.Join(
-		request.ID,
-		request.Addr,
-	); err != nil {
+	configurationFuture := b.raft.GetConfiguration()
+	if err := configurationFuture.Error(); err != nil {
+		http.Error(
+			w,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	for _, server := range configurationFuture.Configuration().Servers {
+		if server.ID == hraft.ServerID(request.ID) &&
+			server.Suffrage == hraft.Voter {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+
+	if err := b.Join(request.ID, request.Addr); err != nil {
 		http.Error(
 			w,
 			err.Error(),

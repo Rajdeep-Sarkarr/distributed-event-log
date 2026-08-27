@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+$TestStartTime = Get-Date
 $ProjectRoot = (Get-Location).Path
 $CertDir = Join-Path $ProjectRoot "certs"
 
@@ -32,16 +33,29 @@ function Invoke-Cli {
 }
 
 function Get-LeaderFromLogs {
-    param([hashtable]$IpMap)
+    param(
+        [hashtable]$IpMap,
+        [DateTime]$Since
+    )
 
     $logs = & docker compose logs --no-log-prefix broker-1 broker-2 broker-3 2>&1
 
     $leader = $null
+
     foreach ($line in $logs) {
-        if ($line -match 'raft: entering leader state: leader="Node at ([0-9.]+):\d+') {
-            $ip = $Matches[1]
-            if ($IpMap.ContainsKey($ip)) {
-                $leader = $IpMap[$ip]
+        if ($line -match '^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+') {
+            $timestamp = [DateTime]::Parse($Matches[1]).ToUniversalTime()
+
+            if ($timestamp -lt $Since.ToUniversalTime()) {
+                continue
+            }
+
+            if ($line -match 'raft: entering leader state: leader="Node at ([0-9.]+):\d+') {
+                $ip = $Matches[1]
+
+                if ($IpMap.ContainsKey($ip)) {
+                    $leader = $IpMap[$ip]
+                }
             }
         }
     }
@@ -105,7 +119,7 @@ $ipMap = Build-IpMap
 $leader = $null
 $deadline = (Get-Date).AddSeconds(15)
 while ((Get-Date) -lt $deadline) {
-    $leader = Get-LeaderFromLogs -IpMap $ipMap
+    $leader = Get-LeaderFromLogs -IpMap $ipMap -Since ([DateTime]::MinValue)
     if ($leader) { break }
     Start-Sleep -Milliseconds 500
 }
@@ -188,10 +202,12 @@ foreach ($metric in @(
 Write-Host ""
 Write-Host "[6/7] Testing consumer-group commit/fetch..." -ForegroundColor Yellow
 
+$GroupId = "integration-test-group-$(Get-Date -Format 'yyyyMMddHHmmss')"
+
 $groupOutput = Invoke-Cli @(
     "consume-group",
     "--addr", "localhost:$leaderPort",
-    "--group", "integration-test-group",
+    "--group", $GroupId,
     "--topic", "integration-test",
     "--partition", "0",
     "--cert", $leaderCert,
@@ -204,7 +220,7 @@ if ($groupOutput -notmatch 'value:\s*phase3-integration-test') {
 }
 
 $fetchResponse = Invoke-RestMethod `
-    -Uri "http://localhost:8081/fetch-offset?group_id=integration-test-group&topic=integration-test&partition=0" `
+    -Uri "http://localhost:8081/fetch-offset?group_id=$GroupId&topic=integration-test&partition=0" `
     -Method Get
 
 if ([uint64]$fetchResponse.offset -ne ($producedOffset + 1)) {
@@ -228,7 +244,7 @@ docker stop $leaderContainerId | Out-Null
 $newLeader = $null
 $deadline = (Get-Date).AddSeconds(20)
 while ((Get-Date) -lt $deadline) {
-    $candidate = Get-LeaderFromLogs -IpMap $ipMap
+    $candidate = Get-LeaderFromLogs -IpMap $ipMap -Since $TestStartTime
     if ($candidate -and $candidate -ne $leader) {
         $newLeader = $candidate
         break
