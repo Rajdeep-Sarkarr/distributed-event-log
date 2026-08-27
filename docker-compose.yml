@@ -10,6 +10,9 @@ services:
       BROKER_RAFT_ADDR: broker-1:8081
       BROKER_DATA_DIR: /data
       BROKER_PEERS: ""
+      BROKER_CERT_FILE: /certs/broker-1.crt
+      BROKER_KEY_FILE: /certs/broker-1.key
+      BROKER_CA_FILE: /certs/ca.crt
     ports:
       - "8081:8080"
       - "9081:9080"
@@ -19,6 +22,7 @@ services:
       - "9080"
     volumes:
       - broker-1-data:/data
+      - ./certs:/certs:ro
     networks:
       - event-log-net
 
@@ -33,6 +37,9 @@ services:
       BROKER_RAFT_ADDR: broker-2:8081
       BROKER_DATA_DIR: /data
       BROKER_PEERS: broker-1:8080
+      BROKER_CERT_FILE: /certs/broker-2.crt
+      BROKER_KEY_FILE: /certs/broker-2.key
+      BROKER_CA_FILE: /certs/ca.crt
     depends_on:
       - broker-1
     ports:
@@ -44,6 +51,7 @@ services:
       - "9080"
     volumes:
       - broker-2-data:/data
+      - ./certs:/certs:ro
     networks:
       - event-log-net
 
@@ -58,6 +66,9 @@ services:
       BROKER_RAFT_ADDR: broker-3:8081
       BROKER_DATA_DIR: /data
       BROKER_PEERS: broker-1:8080
+      BROKER_CERT_FILE: /certs/broker-3.crt
+      BROKER_KEY_FILE: /certs/broker-3.key
+      BROKER_CA_FILE: /certs/ca.crt
     depends_on:
       - broker-1
     ports:
@@ -69,6 +80,7 @@ services:
       - "9080"
     volumes:
       - broker-3-data:/data
+      - ./certs:/certs:ro
     networks:
       - event-log-net
 

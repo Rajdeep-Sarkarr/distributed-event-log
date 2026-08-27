@@ -3,7 +3,7 @@
 
 # Runtime commit log data
 data/
-
+certs/
 # Commit log files
 *.log
 *.index

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,10 +21,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"distributed-event-log/internal/log"
 	pb "distributed-event-log/internal/proto"
 	raftfsm "distributed-event-log/internal/raft"
+	deltatls "distributed-event-log/internal/tls"
 )
 
 const defaultNumPartitions = 3
@@ -33,14 +36,17 @@ var (
 		Name: "event_log_messages_produced_total",
 		Help: "Total number of successfully produced messages.",
 	})
+
 	messagesConsumedTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "event_log_messages_consumed_total",
 		Help: "Total number of successfully consumed messages.",
 	})
+
 	produceErrorsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "event_log_produce_errors_total",
 		Help: "Total number of failed produce requests.",
 	})
+
 	consumeErrorsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "event_log_consume_errors_total",
 		Help: "Total number of failed consume requests.",
@@ -75,18 +81,86 @@ type Broker struct {
 
 	consumerGroups *ConsumerGroupStore
 
+	certFile string
+	keyFile  string
+	caFile   string
+
 	raft       *hraft.Raft
 	httpServer *http.Server
 	grpcServer *grpc.Server
 }
 
-// NewBroker creates a broker with TCP Raft, persistent stores, topic partitions,
-// consumer-group storage, HTTP, and gRPC servers.
-func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
+// tlsStreamLayer wraps a network listener and applies TLS to Raft connections.
+type tlsStreamLayer struct {
+	net.Listener
+	ServerTLSConfig *tls.Config
+	ClientTLSConfig *tls.Config
+}
+
+// Accept accepts a Raft connection and wraps it with server-side TLS.
+func (s *tlsStreamLayer) Accept() (net.Conn, error) {
+	conn, err := s.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+
+	if s.ServerTLSConfig == nil {
+		return conn, nil
+	}
+
+	return tls.Server(conn, s.ServerTLSConfig), nil
+}
+
+// Dial connects to a Raft peer and wraps the connection with client-side TLS.
+func (s *tlsStreamLayer) Dial(
+	address hraft.ServerAddress,
+	timeout time.Duration,
+) (net.Conn, error) {
+	dialer := &net.Dialer{
+		Timeout: timeout,
+	}
+
+	if s.ClientTLSConfig == nil {
+		return dialer.Dial("tcp", string(address))
+	}
+
+	config := s.ClientTLSConfig.Clone()
+
+	host, _, err := net.SplitHostPort(string(address))
+	if err != nil {
+		config.ServerName = string(address)
+	} else {
+		config.ServerName = host
+	}
+
+	return tls.DialWithDialer(
+		dialer,
+		"tcp",
+		string(address),
+		config,
+	)
+}
+
+// NewBroker creates a broker with TCP or TLS-protected Raft transport,
+// persistent stores, topic partitions, consumer-group storage, HTTP,
+// and gRPC servers.
+func NewBroker(
+	id string,
+	httpAddr string,
+	raftAddr string,
+	dataDir string,
+	peers string,
+	certFile string,
+	keyFile string,
+	caFile string,
+) (*Broker, error) {
 	b := &Broker{
 		logs:       make(map[string][]*log.Log),
 		roundRobin: make(map[string]uint64),
 		dataDir:    dataDir,
+		certFile:   certFile,
+		keyFile:    keyFile,
+		caFile:     caFile,
 	}
 
 	consumerGroups, err := NewConsumerGroupStore(
@@ -99,21 +173,71 @@ func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
 	b.consumerGroups = consumerGroups
 
 	raftDir := filepath.Join(dataDir, "raft")
+
 	if err := os.MkdirAll(raftDir, 0755); err != nil {
 		_ = consumerGroups.Close()
 		return nil, err
 	}
 
-	transport, err := hraft.NewTCPTransport(
-		raftAddr,
-		nil,
-		3,
-		10*time.Second,
-		os.Stderr,
-	)
-	if err != nil {
-		_ = consumerGroups.Close()
-		return nil, err
+	var transport *hraft.NetworkTransport
+	var errTransport error
+
+	tlsEnabled := certFile != "" &&
+		keyFile != "" &&
+		caFile != ""
+
+	if tlsEnabled {
+		serverTLSConfig, err := deltatls.LoadServerTLSConfig(
+			certFile,
+			keyFile,
+			caFile,
+		)
+		if err != nil {
+			_ = consumerGroups.Close()
+			return nil, err
+		}
+
+		clientTLSConfig, err := deltatls.LoadClientTLSConfig(
+			certFile,
+			keyFile,
+			caFile,
+		)
+		if err != nil {
+			_ = consumerGroups.Close()
+			return nil, err
+		}
+
+		listener, err := net.Listen("tcp", raftAddr)
+		if err != nil {
+			_ = consumerGroups.Close()
+			return nil, err
+		}
+
+		streamLayer := &tlsStreamLayer{
+			Listener:         listener,
+			ServerTLSConfig:  serverTLSConfig,
+			ClientTLSConfig:  clientTLSConfig,
+		}
+
+		transport = hraft.NewNetworkTransport(
+			streamLayer,
+			3,
+			10*time.Second,
+			os.Stderr,
+		)
+	} else {
+		transport, errTransport = hraft.NewTCPTransport(
+			raftAddr,
+			nil,
+			3,
+			10*time.Second,
+			os.Stderr,
+		)
+
+		if errTransport != nil {
+			_ = consumerGroups.Close()
+			return nil, errTransport
+		}
 	}
 
 	logStore, err := raftboltdb.NewBoltStore(
@@ -172,26 +296,39 @@ func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
 	b.raft = raftNode
 
 	if peers == "" {
-		configuration := hraft.Configuration{
-			Servers: []hraft.Server{
-				{
-					ID:      hraft.ServerID(id),
-					Address: hraft.ServerAddress(raftAddr),
-				},
-			},
-		}
+    hasState, err := hraft.HasExistingState(logStore, stableStore, snapshotStore)
+    if err != nil {
+        _ = raftNode.Shutdown().Error()
+        _ = stableStore.Close()
+        _ = logStore.Close()
+        _ = transport.Close()
+        _ = consumerGroups.Close()
+        return nil, fmt.Errorf("failed to check raft state: %w", err)
+    }
 
-		if err := raftNode.BootstrapCluster(configuration).Error(); err != nil {
-			_ = raftNode.Shutdown().Error()
-			_ = stableStore.Close()
-			_ = logStore.Close()
-			_ = transport.Close()
-			_ = consumerGroups.Close()
-			return nil, err
-		}
+    if !hasState {
+        configuration := hraft.Configuration{
+            Servers: []hraft.Server{
+                {
+                    ID:      hraft.ServerID(id),
+                    Address: hraft.ServerAddress(raftAddr),
+                },
+            },
+        }
+
+        if err := raftNode.BootstrapCluster(configuration).Error(); err != nil {
+            _ = raftNode.Shutdown().Error()
+            _ = stableStore.Close()
+            _ = logStore.Close()
+            _ = transport.Close()
+            _ = consumerGroups.Close()
+            return nil, err
+        }
+    }
 	}
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/join", b.handleJoin)
 	mux.HandleFunc("/produce", b.handleProduce)
 	mux.HandleFunc("/consume", b.handleConsume)
@@ -228,8 +365,34 @@ func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
 		return nil, err
 	}
 
-	b.grpcServer = grpc.NewServer()
-	pb.RegisterBrokerServiceServer(b.grpcServer, b)
+	var grpcOptions []grpc.ServerOption
+
+	if tlsEnabled {
+		serverTLSConfig, err := deltatls.LoadServerTLSConfig(
+			certFile,
+			keyFile,
+			caFile,
+		)
+		if err != nil {
+			_ = grpcListener.Close()
+			_ = b.Close()
+			return nil, err
+		}
+
+		grpcOptions = append(
+			grpcOptions,
+			grpc.Creds(
+				credentials.NewTLS(serverTLSConfig),
+			),
+		)
+	}
+
+	b.grpcServer = grpc.NewServer(grpcOptions...)
+
+	pb.RegisterBrokerServiceServer(
+		b.grpcServer,
+		b,
+	)
 
 	go func() {
 		if err := b.grpcServer.Serve(grpcListener); err != nil {
@@ -243,7 +406,11 @@ func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
 	}()
 
 	if peers != "" {
-		if err := b.joinPeer(id, raftAddr, peers); err != nil {
+		if err := b.joinPeer(
+			id,
+			raftAddr,
+			peers,
+		); err != nil {
 			_ = b.Close()
 			return nil, err
 		}
@@ -254,28 +421,39 @@ func NewBroker(id, httpAddr, raftAddr, dataDir, peers string) (*Broker, error) {
 
 // GetPartition returns the commit log for the requested topic partition,
 // creating the topic and its partitions when necessary.
-func (b *Broker) GetPartition(topic string, partition int) (*log.Log, error) {
+func (b *Broker) GetPartition(
+	topic string,
+	partition int,
+) (*log.Log, error) {
 	if topic == "" {
 		topic = "default"
 	}
 
-	if partition < 0 || partition >= defaultNumPartitions {
-		return nil, fmt.Errorf("partition %d out of range", partition)
+	if partition < 0 ||
+		partition >= defaultNumPartitions {
+		return nil, fmt.Errorf(
+			"partition %d out of range",
+			partition,
+		)
 	}
 
 	b.mu.RLock()
+
 	partitions, ok := b.logs[topic]
+
 	if ok && len(partitions) > partition {
 		partitionLog := partitions[partition]
 		b.mu.RUnlock()
 		return partitionLog, nil
 	}
+
 	b.mu.RUnlock()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if partitions, ok := b.logs[topic]; ok && len(partitions) > partition {
+	if partitions, ok := b.logs[topic]; ok &&
+		len(partitions) > partition {
 		return partitions[partition], nil
 	}
 
@@ -333,15 +511,24 @@ func (b *Broker) Publish(
 	}
 
 	if b.raft.State() != hraft.Leader {
-		return 0, errors.New("broker is not the Raft leader")
+		return 0, errors.New(
+			"broker is not the Raft leader",
+		)
 	}
 
-	selectedPartition, err := b.selectPartition(topic, key, partition)
+	selectedPartition, err := b.selectPartition(
+		topic,
+		key,
+		partition,
+	)
 	if err != nil {
 		return 0, err
 	}
 
-	_, err = b.GetPartition(topic, selectedPartition)
+	_, err = b.GetPartition(
+		topic,
+		selectedPartition,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -358,7 +545,11 @@ func (b *Broker) Publish(
 		return 0, err
 	}
 
-	future := b.raft.Apply(data, 5*time.Second)
+	future := b.raft.Apply(
+		data,
+		5*time.Second,
+	)
+
 	if err := future.Error(); err != nil {
 		return 0, err
 	}
@@ -368,8 +559,10 @@ func (b *Broker) Publish(
 	switch v := response.(type) {
 	case uint64:
 		return v, nil
+
 	case error:
 		return 0, v
+
 	default:
 		return 0, fmt.Errorf(
 			"unexpected FSM response type %T",
@@ -379,7 +572,10 @@ func (b *Broker) Publish(
 }
 
 // Join adds a broker as a voter to the Raft cluster.
-func (b *Broker) Join(id, address string) error {
+func (b *Broker) Join(
+	id string,
+	address string,
+) error {
 	return b.raft.AddVoter(
 		hraft.ServerID(id),
 		hraft.ServerAddress(address),
@@ -394,7 +590,10 @@ func (b *Broker) Read(
 	partition int,
 	offset uint64,
 ) (*log.Message, error) {
-	partitionLog, err := b.GetPartition(topic, partition)
+	partitionLog, err := b.GetPartition(
+		topic,
+		partition,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -461,14 +660,17 @@ func (b *Broker) CommitOffset(
 	req *pb.CommitOffsetRequest,
 ) (*pb.CommitOffsetResponse, error) {
 	if req.GroupId == "" {
-		return nil, errors.New("group_id is required")
+		return nil, errors.New(
+			"group_id is required",
+		)
 	}
 
 	if req.Topic == "" {
 		req.Topic = "default"
 	}
 
-	if req.Partition < 0 || req.Partition >= defaultNumPartitions {
+	if req.Partition < 0 ||
+		req.Partition >= defaultNumPartitions {
 		return nil, fmt.Errorf(
 			"partition %d out of range",
 			req.Partition,
@@ -493,14 +695,17 @@ func (b *Broker) FetchOffset(
 	req *pb.FetchOffsetRequest,
 ) (*pb.FetchOffsetResponse, error) {
 	if req.GroupId == "" {
-		return nil, errors.New("group_id is required")
+		return nil, errors.New(
+			"group_id is required",
+		)
 	}
 
 	if req.Topic == "" {
 		req.Topic = "default"
 	}
 
-	if req.Partition < 0 || req.Partition >= defaultNumPartitions {
+	if req.Partition < 0 ||
+		req.Partition >= defaultNumPartitions {
 		return nil, fmt.Errorf(
 			"partition %d out of range",
 			req.Partition,
@@ -592,7 +797,9 @@ func (b *Broker) handleJoin(
 		Addr string `json:"addr"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(
+		r.Body,
+	).Decode(&request); err != nil {
 		http.Error(
 			w,
 			err.Error(),
@@ -601,7 +808,8 @@ func (b *Broker) handleJoin(
 		return
 	}
 
-	if request.ID == "" || request.Addr == "" {
+	if request.ID == "" ||
+		request.Addr == "" {
 		http.Error(
 			w,
 			"id and addr are required",
@@ -610,7 +818,10 @@ func (b *Broker) handleJoin(
 		return
 	}
 
-	if err := b.Join(request.ID, request.Addr); err != nil {
+	if err := b.Join(
+		request.ID,
+		request.Addr,
+	); err != nil {
 		http.Error(
 			w,
 			err.Error(),
@@ -629,6 +840,7 @@ func (b *Broker) handleProduce(
 ) {
 	if r.Method != http.MethodPost {
 		produceErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"method not allowed",
@@ -644,8 +856,11 @@ func (b *Broker) handleProduce(
 		Value     string `json:"value"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(
+		r.Body,
+	).Decode(&request); err != nil {
 		produceErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			err.Error(),
@@ -666,6 +881,7 @@ func (b *Broker) handleProduce(
 	)
 	if err != nil {
 		produceErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			err.Error(),
@@ -676,17 +892,22 @@ func (b *Broker) handleProduce(
 
 	messagesProducedTotal.Inc()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
 
-	_ = json.NewEncoder(w).Encode(struct {
-		Offset    uint64 `json:"offset"`
-		Topic     string `json:"topic"`
-		Partition int    `json:"partition"`
-	}{
-		Offset:    offset,
-		Topic:     request.Topic,
-		Partition: partitionValue(request.Partition),
-	})
+	_ = json.NewEncoder(w).Encode(
+		struct {
+			Offset    uint64 `json:"offset"`
+			Topic     string `json:"topic"`
+			Partition int    `json:"partition"`
+		}{
+			Offset:    offset,
+			Topic:     request.Topic,
+			Partition: partitionValue(request.Partition),
+		},
+	)
 }
 
 // handleConsume handles HTTP requests to read a message from a topic partition.
@@ -696,6 +917,7 @@ func (b *Broker) handleConsume(
 ) {
 	if r.Method != http.MethodGet {
 		consumeErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"method not allowed",
@@ -705,16 +927,21 @@ func (b *Broker) handleConsume(
 	}
 
 	topic := r.URL.Query().Get("topic")
+
 	if topic == "" {
 		topic = "default"
 	}
 
 	partition := 0
 
-	if value := r.URL.Query().Get("partition"); value != "" {
+	if value := r.URL.Query().Get(
+		"partition",
+	); value != "" {
 		parsed, err := strconv.Atoi(value)
+
 		if err != nil {
 			consumeErrorsTotal.Inc()
+
 			http.Error(
 				w,
 				"invalid partition",
@@ -727,8 +954,10 @@ func (b *Broker) handleConsume(
 	}
 
 	offsetString := r.URL.Query().Get("offset")
+
 	if offsetString == "" {
 		consumeErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"missing offset",
@@ -737,9 +966,14 @@ func (b *Broker) handleConsume(
 		return
 	}
 
-	offset, err := strconv.ParseUint(offsetString, 10, 64)
+	offset, err := strconv.ParseUint(
+		offsetString,
+		10,
+		64,
+	)
 	if err != nil {
 		consumeErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"invalid offset",
@@ -755,6 +989,7 @@ func (b *Broker) handleConsume(
 	)
 	if err != nil {
 		consumeErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			err.Error(),
@@ -765,21 +1000,26 @@ func (b *Broker) handleConsume(
 
 	messagesConsumedTotal.Inc()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
 
-	_ = json.NewEncoder(w).Encode(struct {
-		Offset    uint64 `json:"offset"`
-		Topic     string `json:"topic"`
-		Partition int    `json:"partition"`
-		Key       string `json:"key"`
-		Value     string `json:"value"`
-	}{
-		Offset:    message.Offset,
-		Topic:     topic,
-		Partition: partition,
-		Key:       string(message.Key),
-		Value:     string(message.Value),
-	})
+	_ = json.NewEncoder(w).Encode(
+		struct {
+			Offset    uint64 `json:"offset"`
+			Topic     string `json:"topic"`
+			Partition int    `json:"partition"`
+			Key       string `json:"key"`
+			Value     string `json:"value"`
+		}{
+			Offset:    message.Offset,
+			Topic:     topic,
+			Partition: partition,
+			Key:       string(message.Key),
+			Value:     string(message.Value),
+		},
+	)
 }
 
 // handleCommitOffset handles HTTP consumer-group offset commits.
@@ -803,7 +1043,9 @@ func (b *Broker) handleCommitOffset(
 		Offset    uint64 `json:"offset"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(
+		r.Body,
+	).Decode(&request); err != nil {
 		http.Error(
 			w,
 			err.Error(),
@@ -867,6 +1109,7 @@ func (b *Broker) handleFetchOffset(
 	}
 
 	groupID := r.URL.Query().Get("group_id")
+
 	if groupID == "" {
 		http.Error(
 			w,
@@ -877,11 +1120,13 @@ func (b *Broker) handleFetchOffset(
 	}
 
 	topic := r.URL.Query().Get("topic")
+
 	if topic == "" {
 		topic = "default"
 	}
 
 	partitionString := r.URL.Query().Get("partition")
+
 	if partitionString == "" {
 		http.Error(
 			w,
@@ -896,6 +1141,7 @@ func (b *Broker) handleFetchOffset(
 		10,
 		32,
 	)
+
 	if err != nil ||
 		partition < 0 ||
 		partition >= defaultNumPartitions {
@@ -913,13 +1159,18 @@ func (b *Broker) handleFetchOffset(
 		int32(partition),
 	)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
 
-	_ = json.NewEncoder(w).Encode(struct {
-		Offset uint64 `json:"offset"`
-	}{
-		Offset: offset,
-	})
+	_ = json.NewEncoder(w).Encode(
+		struct {
+			Offset uint64 `json:"offset"`
+		}{
+			Offset: offset,
+		},
+	)
 }
 
 // joinPeer registers this broker with the configured peer.
@@ -952,7 +1203,8 @@ func (b *Broker) joinPeer(
 				return nil
 			}
 
-			response.Body.Close()
+			_ = response.Body.Close()
+
 			lastErr = fmt.Errorf(
 				"join request returned status %s",
 				response.Status,
@@ -976,6 +1228,7 @@ func (b *Broker) joinPeer(
 // grpcAddress derives the gRPC address by adding 1000 to the HTTP port.
 func grpcAddress(httpAddr string) (string, error) {
 	host, portString, err := net.SplitHostPort(httpAddr)
+
 	if err != nil {
 		return "", fmt.Errorf(
 			"invalid HTTP address %q: %w",
@@ -985,6 +1238,7 @@ func grpcAddress(httpAddr string) (string, error) {
 	}
 
 	port, err := strconv.Atoi(portString)
+
 	if err != nil {
 		return "", fmt.Errorf(
 			"invalid HTTP port %q: %w",
@@ -1030,7 +1284,7 @@ func (b *Broker) selectPartition(
 		_, _ = hash.Write(key)
 
 		return int(
-			hash.Sum32() % defaultNumPartitions,
+			hash.Sum32()%defaultNumPartitions,
 		), nil
 	}
 
@@ -1038,7 +1292,8 @@ func (b *Broker) selectPartition(
 	defer b.mu.Unlock()
 
 	next := b.roundRobin[topic] % defaultNumPartitions
-	b.roundRobin[topic] = (next + 1) % defaultNumPartitions
+	b.roundRobin[topic] =
+		(next + 1) % defaultNumPartitions
 
 	return int(next), nil
 }
