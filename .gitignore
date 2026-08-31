@@ -38,3 +38,4 @@ certs/*.ext
 *~
 .DS_Store
 Thumbs.db
+upgrade_log.md
