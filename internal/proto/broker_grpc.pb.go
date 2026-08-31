@@ -20,7 +20,9 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	BrokerService_Produce_FullMethodName      = "/broker.BrokerService/Produce"
+	BrokerService_ProduceBatch_FullMethodName = "/broker.BrokerService/ProduceBatch"
 	BrokerService_Consume_FullMethodName      = "/broker.BrokerService/Consume"
+	BrokerService_ConsumeBatch_FullMethodName = "/broker.BrokerService/ConsumeBatch"
 	BrokerService_CommitOffset_FullMethodName = "/broker.BrokerService/CommitOffset"
 	BrokerService_FetchOffset_FullMethodName  = "/broker.BrokerService/FetchOffset"
 )
@@ -30,7 +32,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BrokerServiceClient interface {
 	Produce(ctx context.Context, in *ProduceRequest, opts ...grpc.CallOption) (*ProduceResponse, error)
+	ProduceBatch(ctx context.Context, in *ProduceBatchRequest, opts ...grpc.CallOption) (*ProduceBatchResponse, error)
 	Consume(ctx context.Context, in *ConsumeRequest, opts ...grpc.CallOption) (*ConsumeResponse, error)
+	ConsumeBatch(ctx context.Context, in *ConsumeBatchRequest, opts ...grpc.CallOption) (*ConsumeBatchResponse, error)
 	CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error)
 	FetchOffset(ctx context.Context, in *FetchOffsetRequest, opts ...grpc.CallOption) (*FetchOffsetResponse, error)
 }
@@ -53,10 +57,30 @@ func (c *brokerServiceClient) Produce(ctx context.Context, in *ProduceRequest, o
 	return out, nil
 }
 
+func (c *brokerServiceClient) ProduceBatch(ctx context.Context, in *ProduceBatchRequest, opts ...grpc.CallOption) (*ProduceBatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProduceBatchResponse)
+	err := c.cc.Invoke(ctx, BrokerService_ProduceBatch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *brokerServiceClient) Consume(ctx context.Context, in *ConsumeRequest, opts ...grpc.CallOption) (*ConsumeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConsumeResponse)
 	err := c.cc.Invoke(ctx, BrokerService_Consume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *brokerServiceClient) ConsumeBatch(ctx context.Context, in *ConsumeBatchRequest, opts ...grpc.CallOption) (*ConsumeBatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConsumeBatchResponse)
+	err := c.cc.Invoke(ctx, BrokerService_ConsumeBatch_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +112,9 @@ func (c *brokerServiceClient) FetchOffset(ctx context.Context, in *FetchOffsetRe
 // for forward compatibility.
 type BrokerServiceServer interface {
 	Produce(context.Context, *ProduceRequest) (*ProduceResponse, error)
+	ProduceBatch(context.Context, *ProduceBatchRequest) (*ProduceBatchResponse, error)
 	Consume(context.Context, *ConsumeRequest) (*ConsumeResponse, error)
+	ConsumeBatch(context.Context, *ConsumeBatchRequest) (*ConsumeBatchResponse, error)
 	CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error)
 	FetchOffset(context.Context, *FetchOffsetRequest) (*FetchOffsetResponse, error)
 	mustEmbedUnimplementedBrokerServiceServer()
@@ -104,8 +130,14 @@ type UnimplementedBrokerServiceServer struct{}
 func (UnimplementedBrokerServiceServer) Produce(context.Context, *ProduceRequest) (*ProduceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Produce not implemented")
 }
+func (UnimplementedBrokerServiceServer) ProduceBatch(context.Context, *ProduceBatchRequest) (*ProduceBatchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ProduceBatch not implemented")
+}
 func (UnimplementedBrokerServiceServer) Consume(context.Context, *ConsumeRequest) (*ConsumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Consume not implemented")
+}
+func (UnimplementedBrokerServiceServer) ConsumeBatch(context.Context, *ConsumeBatchRequest) (*ConsumeBatchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConsumeBatch not implemented")
 }
 func (UnimplementedBrokerServiceServer) CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CommitOffset not implemented")
@@ -152,6 +184,24 @@ func _BrokerService_Produce_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BrokerService_ProduceBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProduceBatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BrokerServiceServer).ProduceBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BrokerService_ProduceBatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BrokerServiceServer).ProduceBatch(ctx, req.(*ProduceBatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BrokerService_Consume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConsumeRequest)
 	if err := dec(in); err != nil {
@@ -166,6 +216,24 @@ func _BrokerService_Consume_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BrokerServiceServer).Consume(ctx, req.(*ConsumeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BrokerService_ConsumeBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConsumeBatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BrokerServiceServer).ConsumeBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BrokerService_ConsumeBatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BrokerServiceServer).ConsumeBatch(ctx, req.(*ConsumeBatchRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -218,8 +286,16 @@ var BrokerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BrokerService_Produce_Handler,
 		},
 		{
+			MethodName: "ProduceBatch",
+			Handler:    _BrokerService_ProduceBatch_Handler,
+		},
+		{
 			MethodName: "Consume",
 			Handler:    _BrokerService_Consume_Handler,
+		},
+		{
+			MethodName: "ConsumeBatch",
+			Handler:    _BrokerService_ConsumeBatch_Handler,
 		},
 		{
 			MethodName: "CommitOffset",

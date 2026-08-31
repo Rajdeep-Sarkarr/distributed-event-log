@@ -1,9 +1,40 @@
-# Go binaries
+# Compiled binaries and executables
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+cmd/broker/broker
+cmd/cli/cli
 
-# Runtime commit log data
+# Test, profiling, and benchmark outputs
+*.test
+*.out
+*.pprof
+cpu.pprof
+mem.pprof
+
+# Runtime data directories & BoltDB databases
 data/
-certs/
-# Commit log files
+raft/
+topics/
+*.db
 *.log
 *.index
+*.tmp
+
+# Certificates & sensitive keys (let gen-certs.ps1 build them locally)
+certs/*.key
+certs/*.crt
+certs/*.csr
+certs/*.srl
+certs/*.ext
+
+# IDE / OS specific files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

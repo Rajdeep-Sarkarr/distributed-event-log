@@ -2,13 +2,23 @@ package broker
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	bbolt "go.etcd.io/bbolt"
 )
 
 const consumerGroupsBucket = "consumer-groups"
+
+// ConsumerGroupOffset represents one committed consumer-group offset.
+type ConsumerGroupOffset struct {
+	GroupID   string
+	Topic     string
+	Partition int32
+	Offset    uint64
+}
 
 // ConsumerGroupStore persists and caches committed consumer-group offsets.
 type ConsumerGroupStore struct {
@@ -59,7 +69,10 @@ func (s *ConsumerGroupStore) load() error {
 
 		return bucket.ForEach(func(k, v []byte) error {
 			if len(v) != 8 {
-				return fmt.Errorf("invalid committed offset for key %q", string(k))
+				return fmt.Errorf(
+					"invalid committed offset for key %q",
+					string(k),
+				)
 			}
 
 			offset := binary.BigEndian.Uint64(v)
@@ -77,14 +90,16 @@ func (s *ConsumerGroupStore) CommitOffset(
 	partition int32,
 	offset uint64,
 ) error {
+	if strings.ContainsRune(groupID, 0) || strings.ContainsRune(topic, 0) {
+		return errors.New("groupID and topic must not contain null bytes")
+	}
+
 	key := offsetKey(groupID, topic, partition)
 
 	var value [8]byte
 	binary.BigEndian.PutUint64(value[:], offset)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	// Persist to BoltDB first without holding the in-memory cache lock
 	err := s.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte(consumerGroupsBucket))
 		if bucket == nil {
@@ -97,7 +112,10 @@ func (s *ConsumerGroupStore) CommitOffset(
 		return err
 	}
 
+	// Update in-memory cache under write lock
+	s.mu.Lock()
 	s.offsets[key] = offset
+	s.mu.Unlock()
 
 	return nil
 }
@@ -116,6 +134,49 @@ func (s *ConsumerGroupStore) FetchOffset(
 	return s.offsets[key]
 }
 
+// Snapshot returns a copy of all committed consumer-group offsets.
+func (s *ConsumerGroupStore) Snapshot() []ConsumerGroupOffset {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	result := make([]ConsumerGroupOffset, 0, len(s.offsets))
+
+	for key, offset := range s.offsets {
+		firstSeparator := strings.IndexByte(key, 0)
+		if firstSeparator < 0 {
+			continue
+		}
+
+		secondSeparator := strings.IndexByte(
+			key[firstSeparator+1:],
+			0,
+		)
+		if secondSeparator < 0 {
+			continue
+		}
+
+		secondSeparator += firstSeparator + 1
+
+		partitionBytes := key[secondSeparator+1:]
+		if len(partitionBytes) != 4 {
+			continue
+		}
+
+		partition := int32(
+			binary.BigEndian.Uint32([]byte(partitionBytes)),
+		)
+
+		result = append(result, ConsumerGroupOffset{
+			GroupID:   key[:firstSeparator],
+			Topic:     key[firstSeparator+1 : secondSeparator],
+			Partition: partition,
+			Offset:    offset,
+		})
+	}
+
+	return result
+}
+
 // Close closes the consumer-group BoltDB database.
 func (s *ConsumerGroupStore) Close() error {
 	return s.db.Close()
@@ -124,7 +185,14 @@ func (s *ConsumerGroupStore) Close() error {
 // offsetKey creates the unique cache/database key for a group topic partition.
 func offsetKey(groupID string, topic string, partition int32) string {
 	var partitionBytes [4]byte
-	binary.BigEndian.PutUint32(partitionBytes[:], uint32(partition))
+	binary.BigEndian.PutUint32(
+		partitionBytes[:],
+		uint32(partition),
+	)
 
-	return groupID + "\x00" + topic + "\x00" + string(partitionBytes[:])
+	return groupID +
+		"\x00" +
+		topic +
+		"\x00" +
+		string(partitionBytes[:])
 }

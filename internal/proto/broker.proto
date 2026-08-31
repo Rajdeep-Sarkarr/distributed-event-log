@@ -1,10 +1,16 @@
 syntax = "proto3";
+
 package broker;
+
 option go_package = "distributed-event-log/internal/proto";
 
 service BrokerService {
   rpc Produce(ProduceRequest) returns (ProduceResponse);
+  rpc ProduceBatch(ProduceBatchRequest) returns (ProduceBatchResponse);
+
   rpc Consume(ConsumeRequest) returns (ConsumeResponse);
+  rpc ConsumeBatch(ConsumeBatchRequest) returns (ConsumeBatchResponse);
+
   rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse);
   rpc FetchOffset(FetchOffsetRequest) returns (FetchOffsetResponse);
 }
@@ -20,6 +26,22 @@ message ProduceResponse {
   uint64 offset = 1;
 }
 
+message Record {
+  bytes key = 1;
+  bytes value = 2;
+}
+
+message ProduceBatchRequest {
+  string topic = 1;
+  int32 partition = 2;
+  repeated Record records = 3;
+}
+
+message ProduceBatchResponse {
+  repeated int64 offsets = 1;
+  string error = 2;
+}
+
 message ConsumeRequest {
   uint64 offset = 1;
   string topic = 2;
@@ -30,6 +52,24 @@ message ConsumeResponse {
   uint64 offset = 1;
   bytes key = 2;
   bytes value = 3;
+}
+
+message ConsumeBatchRequest {
+  string topic = 1;
+  int32 partition = 2;
+  int64 offset = 3;
+  int32 max_count = 4;
+}
+
+message ConsumedRecord {
+  int64 offset = 1;
+  bytes key = 2;
+  bytes value = 3;
+  int64 timestamp = 4;
+}
+
+message ConsumeBatchResponse {
+  repeated ConsumedRecord records = 1;
 }
 
 message CommitOffsetRequest {

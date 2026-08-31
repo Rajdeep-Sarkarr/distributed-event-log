@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-
+$TestTopic = "integration-test-$(Get-Date -Format 'yyyyMMddHHmmss')"
 $TestStartTime = Get-Date
 $ProjectRoot = (Get-Location).Path
 $CertDir = Join-Path $ProjectRoot "certs"
@@ -9,6 +9,13 @@ $BrokerPorts = @{
     "broker-2" = 9082
     "broker-3" = 9083
 }
+
+$HttpPorts = @{
+    "broker-1" = 8081
+    "broker-2" = 8082
+    "broker-3" = 8083
+}
+
 
 function Require-Path {
     param([string]$Path, [string]$Description)
@@ -114,12 +121,30 @@ foreach ($service in @("broker-1", "broker-2", "broker-3", "prometheus", "grafan
 Write-Host ""
 Write-Host "[2/7] Checking Raft leader election..." -ForegroundColor Yellow
 
-$ipMap = Build-IpMap
-
 $leader = $null
 $deadline = (Get-Date).AddSeconds(15)
+
 while ((Get-Date) -lt $deadline) {
-    $leader = Get-LeaderFromLogs -IpMap $ipMap -Since ([DateTime]::MinValue)
+    # Method A: Check live HTTP admin endpoint
+    foreach ($name in @("broker-1", "broker-2", "broker-3")) {
+        $port = $HttpPorts[$name]
+        try {
+            $resp = Invoke-RestMethod -Uri "http://localhost:$port/admin/cluster" -Method Get -TimeoutSec 1
+            if ($resp.state -eq "Leader") {
+                $leader = $name
+                break
+            }
+        } catch {}
+    }
+
+    # Method B: Fallback to log examination
+    if (-not $leader) {
+        $leader = Get-LeaderFromLogs -IpMap (Build-IpMap) -Since $TestStartTime
+        if (-not $leader) {
+            $leader = Get-LeaderFromLogs -IpMap (Build-IpMap) -Since ([DateTime]::MinValue)
+        }
+    }
+
     if ($leader) { break }
     Start-Sleep -Milliseconds 500
 }
@@ -142,7 +167,7 @@ $caCert = Join-Path $CertDir "ca.crt"
 $produceOutput = Invoke-Cli @(
     "produce",
     "--addr", "localhost:$leaderPort",
-    "--topic", "integration-test",
+    "--topic", $TestTopic,
     "--partition", "0",
     "--msg", "phase3-integration-test",
     "--cert", $leaderCert,
@@ -164,7 +189,7 @@ Write-Host "[4/7] Testing partitioned Consume..." -ForegroundColor Yellow
 $consumeOutput = Invoke-Cli @(
     "consume",
     "--addr", "localhost:$leaderPort",
-    "--topic", "integration-test",
+    "--topic", $TestTopic,
     "--partition", "0",
     "--offset", "$producedOffset",
     "--cert", $leaderCert,
@@ -208,7 +233,7 @@ $groupOutput = Invoke-Cli @(
     "consume-group",
     "--addr", "localhost:$leaderPort",
     "--group", $GroupId,
-    "--topic", "integration-test",
+    "--topic", $TestTopic,
     "--partition", "0",
     "--cert", $leaderCert,
     "--key", $leaderKey,
@@ -218,9 +243,9 @@ $groupOutput = Invoke-Cli @(
 if ($groupOutput -notmatch 'value:\s*phase3-integration-test') {
     throw "FAIL: Consumer group did not consume the expected message"
 }
-
+$leaderHttpPort = $HttpPorts[$leader]
 $fetchResponse = Invoke-RestMethod `
-    -Uri "http://localhost:8081/fetch-offset?group_id=$GroupId&topic=integration-test&partition=0" `
+    -Uri "http://localhost:$leaderHttpPort/fetch-offset?group_id=$GroupId&topic=$TestTopic&partition=0" `
     -Method Get
 
 if ([uint64]$fetchResponse.offset -ne ($producedOffset + 1)) {
@@ -243,12 +268,22 @@ docker stop $leaderContainerId | Out-Null
 
 $newLeader = $null
 $deadline = (Get-Date).AddSeconds(20)
+
 while ((Get-Date) -lt $deadline) {
-    $candidate = Get-LeaderFromLogs -IpMap $ipMap -Since $TestStartTime
-    if ($candidate -and $candidate -ne $leader) {
-        $newLeader = $candidate
-        break
+    foreach ($name in @("broker-1", "broker-2", "broker-3")) {
+        if ($name -eq $leader) { continue }
+        $port = $HttpPorts[$name]
+        try {
+            $resp = Invoke-RestMethod -Uri "http://localhost:$port/admin/cluster" -Method Get -TimeoutSec 1
+            if ($resp.state -eq "Leader") {
+                $newLeader = $name
+                break
+            }
+        }
+        catch {}
     }
+
+    if ($newLeader) { break }
     Start-Sleep -Milliseconds 500
 }
 

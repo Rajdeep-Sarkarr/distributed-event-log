@@ -133,6 +133,170 @@ func (x *ProduceResponse) GetOffset() uint64 {
 	return 0
 }
 
+type Record struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           []byte                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         []byte                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Record) Reset() {
+	*x = Record{}
+	mi := &file_internal_proto_broker_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Record) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Record) ProtoMessage() {}
+
+func (x *Record) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Record.ProtoReflect.Descriptor instead.
+func (*Record) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Record) GetKey() []byte {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *Record) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type ProduceBatchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	Partition     int32                  `protobuf:"varint,2,opt,name=partition,proto3" json:"partition,omitempty"`
+	Records       []*Record              `protobuf:"bytes,3,rep,name=records,proto3" json:"records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProduceBatchRequest) Reset() {
+	*x = ProduceBatchRequest{}
+	mi := &file_internal_proto_broker_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProduceBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProduceBatchRequest) ProtoMessage() {}
+
+func (x *ProduceBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProduceBatchRequest.ProtoReflect.Descriptor instead.
+func (*ProduceBatchRequest) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ProduceBatchRequest) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+func (x *ProduceBatchRequest) GetPartition() int32 {
+	if x != nil {
+		return x.Partition
+	}
+	return 0
+}
+
+func (x *ProduceBatchRequest) GetRecords() []*Record {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+type ProduceBatchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Offsets       []int64                `protobuf:"varint,1,rep,packed,name=offsets,proto3" json:"offsets,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProduceBatchResponse) Reset() {
+	*x = ProduceBatchResponse{}
+	mi := &file_internal_proto_broker_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProduceBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProduceBatchResponse) ProtoMessage() {}
+
+func (x *ProduceBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProduceBatchResponse.ProtoReflect.Descriptor instead.
+func (*ProduceBatchResponse) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ProduceBatchResponse) GetOffsets() []int64 {
+	if x != nil {
+		return x.Offsets
+	}
+	return nil
+}
+
+func (x *ProduceBatchResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type ConsumeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Offset        uint64                 `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
@@ -144,7 +308,7 @@ type ConsumeRequest struct {
 
 func (x *ConsumeRequest) Reset() {
 	*x = ConsumeRequest{}
-	mi := &file_internal_proto_broker_proto_msgTypes[2]
+	mi := &file_internal_proto_broker_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -156,7 +320,7 @@ func (x *ConsumeRequest) String() string {
 func (*ConsumeRequest) ProtoMessage() {}
 
 func (x *ConsumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[2]
+	mi := &file_internal_proto_broker_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +333,7 @@ func (x *ConsumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsumeRequest.ProtoReflect.Descriptor instead.
 func (*ConsumeRequest) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{2}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ConsumeRequest) GetOffset() uint64 {
@@ -204,7 +368,7 @@ type ConsumeResponse struct {
 
 func (x *ConsumeResponse) Reset() {
 	*x = ConsumeResponse{}
-	mi := &file_internal_proto_broker_proto_msgTypes[3]
+	mi := &file_internal_proto_broker_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +380,7 @@ func (x *ConsumeResponse) String() string {
 func (*ConsumeResponse) ProtoMessage() {}
 
 func (x *ConsumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[3]
+	mi := &file_internal_proto_broker_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +393,7 @@ func (x *ConsumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsumeResponse.ProtoReflect.Descriptor instead.
 func (*ConsumeResponse) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{3}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConsumeResponse) GetOffset() uint64 {
@@ -253,6 +417,186 @@ func (x *ConsumeResponse) GetValue() []byte {
 	return nil
 }
 
+type ConsumeBatchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	Partition     int32                  `protobuf:"varint,2,opt,name=partition,proto3" json:"partition,omitempty"`
+	Offset        int64                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	MaxCount      int32                  `protobuf:"varint,4,opt,name=max_count,json=maxCount,proto3" json:"max_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConsumeBatchRequest) Reset() {
+	*x = ConsumeBatchRequest{}
+	mi := &file_internal_proto_broker_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConsumeBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConsumeBatchRequest) ProtoMessage() {}
+
+func (x *ConsumeBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConsumeBatchRequest.ProtoReflect.Descriptor instead.
+func (*ConsumeBatchRequest) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ConsumeBatchRequest) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+func (x *ConsumeBatchRequest) GetPartition() int32 {
+	if x != nil {
+		return x.Partition
+	}
+	return 0
+}
+
+func (x *ConsumeBatchRequest) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *ConsumeBatchRequest) GetMaxCount() int32 {
+	if x != nil {
+		return x.MaxCount
+	}
+	return 0
+}
+
+type ConsumedRecord struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Offset        int64                  `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
+	Key           []byte                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         []byte                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConsumedRecord) Reset() {
+	*x = ConsumedRecord{}
+	mi := &file_internal_proto_broker_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConsumedRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConsumedRecord) ProtoMessage() {}
+
+func (x *ConsumedRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConsumedRecord.ProtoReflect.Descriptor instead.
+func (*ConsumedRecord) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ConsumedRecord) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *ConsumedRecord) GetKey() []byte {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *ConsumedRecord) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *ConsumedRecord) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+type ConsumeBatchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Records       []*ConsumedRecord      `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConsumeBatchResponse) Reset() {
+	*x = ConsumeBatchResponse{}
+	mi := &file_internal_proto_broker_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConsumeBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConsumeBatchResponse) ProtoMessage() {}
+
+func (x *ConsumeBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_broker_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConsumeBatchResponse.ProtoReflect.Descriptor instead.
+func (*ConsumeBatchResponse) Descriptor() ([]byte, []int) {
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ConsumeBatchResponse) GetRecords() []*ConsumedRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
 type CommitOffsetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
@@ -265,7 +609,7 @@ type CommitOffsetRequest struct {
 
 func (x *CommitOffsetRequest) Reset() {
 	*x = CommitOffsetRequest{}
-	mi := &file_internal_proto_broker_proto_msgTypes[4]
+	mi := &file_internal_proto_broker_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -277,7 +621,7 @@ func (x *CommitOffsetRequest) String() string {
 func (*CommitOffsetRequest) ProtoMessage() {}
 
 func (x *CommitOffsetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[4]
+	mi := &file_internal_proto_broker_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -290,7 +634,7 @@ func (x *CommitOffsetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitOffsetRequest.ProtoReflect.Descriptor instead.
 func (*CommitOffsetRequest) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{4}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CommitOffsetRequest) GetGroupId() string {
@@ -329,7 +673,7 @@ type CommitOffsetResponse struct {
 
 func (x *CommitOffsetResponse) Reset() {
 	*x = CommitOffsetResponse{}
-	mi := &file_internal_proto_broker_proto_msgTypes[5]
+	mi := &file_internal_proto_broker_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -341,7 +685,7 @@ func (x *CommitOffsetResponse) String() string {
 func (*CommitOffsetResponse) ProtoMessage() {}
 
 func (x *CommitOffsetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[5]
+	mi := &file_internal_proto_broker_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -354,7 +698,7 @@ func (x *CommitOffsetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitOffsetResponse.ProtoReflect.Descriptor instead.
 func (*CommitOffsetResponse) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{5}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{11}
 }
 
 type FetchOffsetRequest struct {
@@ -368,7 +712,7 @@ type FetchOffsetRequest struct {
 
 func (x *FetchOffsetRequest) Reset() {
 	*x = FetchOffsetRequest{}
-	mi := &file_internal_proto_broker_proto_msgTypes[6]
+	mi := &file_internal_proto_broker_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -380,7 +724,7 @@ func (x *FetchOffsetRequest) String() string {
 func (*FetchOffsetRequest) ProtoMessage() {}
 
 func (x *FetchOffsetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[6]
+	mi := &file_internal_proto_broker_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -393,7 +737,7 @@ func (x *FetchOffsetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchOffsetRequest.ProtoReflect.Descriptor instead.
 func (*FetchOffsetRequest) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{6}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FetchOffsetRequest) GetGroupId() string {
@@ -426,7 +770,7 @@ type FetchOffsetResponse struct {
 
 func (x *FetchOffsetResponse) Reset() {
 	*x = FetchOffsetResponse{}
-	mi := &file_internal_proto_broker_proto_msgTypes[7]
+	mi := &file_internal_proto_broker_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +782,7 @@ func (x *FetchOffsetResponse) String() string {
 func (*FetchOffsetResponse) ProtoMessage() {}
 
 func (x *FetchOffsetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_broker_proto_msgTypes[7]
+	mi := &file_internal_proto_broker_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +795,7 @@ func (x *FetchOffsetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchOffsetResponse.ProtoReflect.Descriptor instead.
 func (*FetchOffsetResponse) Descriptor() ([]byte, []int) {
-	return file_internal_proto_broker_proto_rawDescGZIP(), []int{7}
+	return file_internal_proto_broker_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FetchOffsetResponse) GetOffset() uint64 {
@@ -474,7 +818,17 @@ const file_internal_proto_broker_proto_rawDesc = "" +
 	"\n" +
 	"_partition\")\n" +
 	"\x0fProduceResponse\x12\x16\n" +
-	"\x06offset\x18\x01 \x01(\x04R\x06offset\"o\n" +
+	"\x06offset\x18\x01 \x01(\x04R\x06offset\"0\n" +
+	"\x06Record\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\fR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value\"s\n" +
+	"\x13ProduceBatchRequest\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1c\n" +
+	"\tpartition\x18\x02 \x01(\x05R\tpartition\x12(\n" +
+	"\arecords\x18\x03 \x03(\v2\x0e.broker.RecordR\arecords\"F\n" +
+	"\x14ProduceBatchResponse\x12\x18\n" +
+	"\aoffsets\x18\x01 \x03(\x03R\aoffsets\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"o\n" +
 	"\x0eConsumeRequest\x12\x16\n" +
 	"\x06offset\x18\x01 \x01(\x04R\x06offset\x12\x14\n" +
 	"\x05topic\x18\x02 \x01(\tR\x05topic\x12!\n" +
@@ -484,7 +838,19 @@ const file_internal_proto_broker_proto_rawDesc = "" +
 	"\x0fConsumeResponse\x12\x16\n" +
 	"\x06offset\x18\x01 \x01(\x04R\x06offset\x12\x10\n" +
 	"\x03key\x18\x02 \x01(\fR\x03key\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\fR\x05value\"|\n" +
+	"\x05value\x18\x03 \x01(\fR\x05value\"~\n" +
+	"\x13ConsumeBatchRequest\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1c\n" +
+	"\tpartition\x18\x02 \x01(\x05R\tpartition\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x03R\x06offset\x12\x1b\n" +
+	"\tmax_count\x18\x04 \x01(\x05R\bmaxCount\"n\n" +
+	"\x0eConsumedRecord\x12\x16\n" +
+	"\x06offset\x18\x01 \x01(\x03R\x06offset\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\fR\x03key\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\fR\x05value\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"H\n" +
+	"\x14ConsumeBatchResponse\x120\n" +
+	"\arecords\x18\x01 \x03(\v2\x16.broker.ConsumedRecordR\arecords\"|\n" +
 	"\x13CommitOffsetRequest\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x14\n" +
 	"\x05topic\x18\x02 \x01(\tR\x05topic\x12\x1c\n" +
@@ -496,10 +862,12 @@ const file_internal_proto_broker_proto_rawDesc = "" +
 	"\x05topic\x18\x02 \x01(\tR\x05topic\x12\x1c\n" +
 	"\tpartition\x18\x03 \x01(\x05R\tpartition\"-\n" +
 	"\x13FetchOffsetResponse\x12\x16\n" +
-	"\x06offset\x18\x01 \x01(\x04R\x06offset2\x9a\x02\n" +
+	"\x06offset\x18\x01 \x01(\x04R\x06offset2\xb0\x03\n" +
 	"\rBrokerService\x12:\n" +
-	"\aProduce\x12\x16.broker.ProduceRequest\x1a\x17.broker.ProduceResponse\x12:\n" +
+	"\aProduce\x12\x16.broker.ProduceRequest\x1a\x17.broker.ProduceResponse\x12I\n" +
+	"\fProduceBatch\x12\x1b.broker.ProduceBatchRequest\x1a\x1c.broker.ProduceBatchResponse\x12:\n" +
 	"\aConsume\x12\x16.broker.ConsumeRequest\x1a\x17.broker.ConsumeResponse\x12I\n" +
+	"\fConsumeBatch\x12\x1b.broker.ConsumeBatchRequest\x1a\x1c.broker.ConsumeBatchResponse\x12I\n" +
 	"\fCommitOffset\x12\x1b.broker.CommitOffsetRequest\x1a\x1c.broker.CommitOffsetResponse\x12F\n" +
 	"\vFetchOffset\x12\x1a.broker.FetchOffsetRequest\x1a\x1b.broker.FetchOffsetResponseB&Z$distributed-event-log/internal/protob\x06proto3"
 
@@ -515,31 +883,43 @@ func file_internal_proto_broker_proto_rawDescGZIP() []byte {
 	return file_internal_proto_broker_proto_rawDescData
 }
 
-var file_internal_proto_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_internal_proto_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_internal_proto_broker_proto_goTypes = []any{
 	(*ProduceRequest)(nil),       // 0: broker.ProduceRequest
 	(*ProduceResponse)(nil),      // 1: broker.ProduceResponse
-	(*ConsumeRequest)(nil),       // 2: broker.ConsumeRequest
-	(*ConsumeResponse)(nil),      // 3: broker.ConsumeResponse
-	(*CommitOffsetRequest)(nil),  // 4: broker.CommitOffsetRequest
-	(*CommitOffsetResponse)(nil), // 5: broker.CommitOffsetResponse
-	(*FetchOffsetRequest)(nil),   // 6: broker.FetchOffsetRequest
-	(*FetchOffsetResponse)(nil),  // 7: broker.FetchOffsetResponse
+	(*Record)(nil),               // 2: broker.Record
+	(*ProduceBatchRequest)(nil),  // 3: broker.ProduceBatchRequest
+	(*ProduceBatchResponse)(nil), // 4: broker.ProduceBatchResponse
+	(*ConsumeRequest)(nil),       // 5: broker.ConsumeRequest
+	(*ConsumeResponse)(nil),      // 6: broker.ConsumeResponse
+	(*ConsumeBatchRequest)(nil),  // 7: broker.ConsumeBatchRequest
+	(*ConsumedRecord)(nil),       // 8: broker.ConsumedRecord
+	(*ConsumeBatchResponse)(nil), // 9: broker.ConsumeBatchResponse
+	(*CommitOffsetRequest)(nil),  // 10: broker.CommitOffsetRequest
+	(*CommitOffsetResponse)(nil), // 11: broker.CommitOffsetResponse
+	(*FetchOffsetRequest)(nil),   // 12: broker.FetchOffsetRequest
+	(*FetchOffsetResponse)(nil),  // 13: broker.FetchOffsetResponse
 }
 var file_internal_proto_broker_proto_depIdxs = []int32{
-	0, // 0: broker.BrokerService.Produce:input_type -> broker.ProduceRequest
-	2, // 1: broker.BrokerService.Consume:input_type -> broker.ConsumeRequest
-	4, // 2: broker.BrokerService.CommitOffset:input_type -> broker.CommitOffsetRequest
-	6, // 3: broker.BrokerService.FetchOffset:input_type -> broker.FetchOffsetRequest
-	1, // 4: broker.BrokerService.Produce:output_type -> broker.ProduceResponse
-	3, // 5: broker.BrokerService.Consume:output_type -> broker.ConsumeResponse
-	5, // 6: broker.BrokerService.CommitOffset:output_type -> broker.CommitOffsetResponse
-	7, // 7: broker.BrokerService.FetchOffset:output_type -> broker.FetchOffsetResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2,  // 0: broker.ProduceBatchRequest.records:type_name -> broker.Record
+	8,  // 1: broker.ConsumeBatchResponse.records:type_name -> broker.ConsumedRecord
+	0,  // 2: broker.BrokerService.Produce:input_type -> broker.ProduceRequest
+	3,  // 3: broker.BrokerService.ProduceBatch:input_type -> broker.ProduceBatchRequest
+	5,  // 4: broker.BrokerService.Consume:input_type -> broker.ConsumeRequest
+	7,  // 5: broker.BrokerService.ConsumeBatch:input_type -> broker.ConsumeBatchRequest
+	10, // 6: broker.BrokerService.CommitOffset:input_type -> broker.CommitOffsetRequest
+	12, // 7: broker.BrokerService.FetchOffset:input_type -> broker.FetchOffsetRequest
+	1,  // 8: broker.BrokerService.Produce:output_type -> broker.ProduceResponse
+	4,  // 9: broker.BrokerService.ProduceBatch:output_type -> broker.ProduceBatchResponse
+	6,  // 10: broker.BrokerService.Consume:output_type -> broker.ConsumeResponse
+	9,  // 11: broker.BrokerService.ConsumeBatch:output_type -> broker.ConsumeBatchResponse
+	11, // 12: broker.BrokerService.CommitOffset:output_type -> broker.CommitOffsetResponse
+	13, // 13: broker.BrokerService.FetchOffset:output_type -> broker.FetchOffsetResponse
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_internal_proto_broker_proto_init() }
@@ -548,14 +928,14 @@ func file_internal_proto_broker_proto_init() {
 		return
 	}
 	file_internal_proto_broker_proto_msgTypes[0].OneofWrappers = []any{}
-	file_internal_proto_broker_proto_msgTypes[2].OneofWrappers = []any{}
+	file_internal_proto_broker_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_proto_broker_proto_rawDesc), len(file_internal_proto_broker_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
