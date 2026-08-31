@@ -40,3 +40,4 @@ certs/*.ext
 Thumbs.db
 upgrade_log.md
 bench_results.txt
+README_corrected.md
